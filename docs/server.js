@@ -19,9 +19,14 @@ app.post("/chat", async (req, res) => {
     return res.status(400).json({ error: "No prompt provided" });
   }
 
+  const flaskUrl = process.env.FLASK_URL;
+  if (!flaskUrl) {
+    console.error("FLASK_URL is not set");
+    return res.status(500).json({ error: "Server misconfigured" });
+  }
+
   try {
-    // Forward to Flask’s /generate endpoint (running on port 5000)
-    const aiResponse = await fetch("http://127.0.0.1:5000/generate", {
+    const aiResponse = await fetch(`${flaskUrl}/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt }),
@@ -34,8 +39,8 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// Start the Node server on port 3000
-const PORT = 3000;
+// Start the Node server on port 3000 (or process.env.PORT in Render)
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Node server running at http://localhost:${PORT}`);
+  console.log(`Node server running on port ${PORT}`);
 });
