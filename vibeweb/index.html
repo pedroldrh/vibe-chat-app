@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenAI Chat-bot wrapper</title>
+  <!-- Import Roboto from Google Fonts -->
+<link
+  href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
+  rel="stylesheet"
+/>
+
+  <!-- Load p5.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+  <style>
+  /* 1. Force Roboto on all elements */
+  * {
+    font-family: 'Roboto', sans-serif !important;
+    box-sizing: border-box;
+  }
+
+  /* 2. Base page styles */
+  body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background-color: #FED4E7;   /* very light grey background */
+    color: #000;
+  }
+
+  /* 3. Center the chat container */
+  #chat-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #EDC9FF;          /* solid white container */
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    width: 90%;
+  }
+
+  /* 4. Messages area */
+  #messages {
+    max-height: 350px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+  }
+
+  .message {
+    display: flex;
+    flex-direction: column;
+    margin: 0.5rem 0;
+  }
+
+  /* 5. User bubble: grey background, black text, right-aligned */
+  .message.user .bubble {
+    background: #F4F6F4;         /* light grey */
+    color: #000;                 /* black text */
+    padding: 0.6rem 1rem;
+    border-radius: 18px 18px 0 18px;
+    align-self: flex-end;        /* push to right */
+    max-width: 80%;
+    word-wrap: break-word;
+  }
+
+  /* 6. Bot bubble: white background, black text, left-aligned */
+  .message.bot .bubble {
+    background: #fff;            /* pure white */
+    color: #000;                 /* black text */
+    padding: 0.6rem 1rem;
+    border-radius: 18px 18px 18px 0;
+    align-self: flex-start;      /* push to left */
+    max-width: 80%;
+    word-wrap: break-word;
+  }
+
+  /* 7. Timestamp styling (optional)—small grey text below each bubble */
+  .timestamp {
+    font-size: 0.75rem;
+    color: #000000;
+    margin-top: 4px;
+  }
+  .message.user .timestamp {
+    align-self: flex-end;
+  }
+  .message.bot .timestamp {
+    align-self: flex-start;
+  }
+
+  /* 8. Input area */
+  #chat-form {
+    display: flex;
+    gap: 0.5rem;
+  }
+  input[type="text"] {
+    flex: 1;
+    padding: 0.6rem 0.8rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  input[type="text"]:focus {
+    outline: none;
+    border-color: #888;
+  }
+
+  button {
+    padding: 0.6rem 1.2rem;
+    font-size: 1rem;
+    background: #8a58d6;        /* a blue “Send” button */
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.1s ease;
+  }
+  button:hover {
+    background: #1669c1;
+  }
+  button:disabled {
+    background: #aaa;
+    cursor: default;
+  }
+</style>
+</head>
+<body>
+  <div id="chat-container">
+    <div id="messages"></div>
+    <form id="chat-form">
+      <input type="text" id="prompt-input" placeholder="Type your prompt..." />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <script>
+  // … (your existing p5.js setup/draw here) …
+
+  // ===== Chat logic =====
+  const messagesDiv = document.getElementById("messages");
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("prompt-input");
+  const sendBtn = document.querySelector("button");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const prompt = input.value.trim();
+    if (!prompt) return;
+
+    // Disable send until response returns
+    sendBtn.disabled = true;
+
+    // 1) Append user message bubble
+    appendMessage(prompt, "user");
+
+    input.value = "";
+    input.focus();
+
+    try {
+      // 2) Fetch from Node /chat
+      const res = await fetch("http://localhost:3000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const json = await res.json();
+
+      // 3) Append bot message bubble
+      if (json.reply) {
+        appendMessage(json.reply, "bot");
+      } else {
+        appendMessage("Error: No reply received.", "bot");
+      }
+    } catch (err) {
+      appendMessage("Error contacting server.", "bot");
+      console.error(err);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+
+  function appendMessage(text, sender) {
+    // Create container
+    const wrapper = document.createElement("div");
+    wrapper.className = `message ${sender}`;
+
+    // Create bubble
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = text;  // No "You:" or "Bot:" prefix
+
+    // Optionally add a timestamp below:
+    const timeSpan = document.createElement("span");
+    timeSpan.className = "timestamp";
+    const now = new Date();
+    const hours = now.getHours().toString().padStart(2, "0");
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+    timeSpan.textContent = `${hours}:${minutes}`;
+
+    // Assemble
+    wrapper.appendChild(bubble);
+    wrapper.appendChild(timeSpan);
+    messagesDiv.appendChild(wrapper);
+
+    // Scroll to bottom
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+</script>
+
+</body>
+</html>

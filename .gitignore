@@ -1,0 +1,21 @@
+# Python venv
+python101/venv/
+
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+
+# Node modules
+vibeweb/node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# VS Code settings
+.vscode/
+
+# System files
+.DS_Store
+Thumbs.db
